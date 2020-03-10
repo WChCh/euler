@@ -125,7 +125,7 @@ def run_train(model, flags_obj, master, is_chief):
     hooks.append(
         tf.train.ProfilerHook(save_secs=180, output_dir=flags_obj.model_dir))
   if len(flags_obj.worker_hosts):
-    hooks.append(utils_hooks.SyncExitHook(len(flags_obj.worker_hosts)))
+    hooks.append(utils_hooks.SyncExitHook(len(flags_obj.worker_hosts), flags_obj.task_index, is_chief))
   if hasattr(model, 'make_session_run_hook'):
     hooks.append(model.make_session_run_hook())
 
@@ -155,7 +155,7 @@ def run_evaluate(model, flags_obj, master, is_chief):
   tf.train.get_or_create_global_step()
   hooks = []
   if master:
-    hooks.append(utils_hooks.SyncExitHook(len(flags_obj.worker_hosts)))
+    hooks.append(utils_hooks.SyncExitHook(len(flags_obj.worker_hosts), flags_obj.task_index, is_chief))
 
   with tf.train.MonitoredTrainingSession(
       master=master,
@@ -184,7 +184,7 @@ def run_save_embedding(model, flags_obj, master, is_chief):
   tf.train.get_or_create_global_step()
   hooks = []
   if master:
-    hooks.append(utils_hooks.SyncExitHook(len(flags_obj.worker_hosts)))
+    hooks.append(utils_hooks.SyncExitHook(len(flags_obj.worker_hosts), flags_obj.task_index, is_chief))
 
   ids = []
   embedding_vals = []

@@ -23,17 +23,33 @@ import tensorflow as tf
 
 
 class SyncExitHook(tf.train.SessionRunHook):
-  def __init__(self, num_workers):
+  def __init__(self, num_workers, task_index, is_chief):
+    self._task_index = task_index
+    self._is_chief = is_chief
     self._num_workers = num_workers
-    self._num_finished_workers = tf.Variable(
-        0, name="num_finished_workers", collections=[tf.GraphKeys.LOCAL_VARIABLES])
-    self._finish_self = tf.assign_add(
-        self._num_finished_workers, 1, use_locking=True)
+    self._counter_vars = []
+    self._counter_add_ops = []
+    for i in range(self._num_workers):
+      counter_var = tf.Variable(0, name="num_finished_workers-{}".format(i), collections=[tf.GraphKeys.LOCAL_VARIABLES])
+      self._counter_vars.append(counter_var)
+      counter_var_ops = tf.assign(counter_var, 1, use_locking=True)
+      self._counter_add_ops.append(counter_var_ops)
 
   def end(self, session):
-    session.run(self._finish_self)
-    num_finished_workers = session.run(self._num_finished_workers)
-    while num_finished_workers < self._num_workers:
+    session.run(self._counter_add_ops[self._task_index])
+    num_finished_workers = 0
+    while True:
+      for i in range(self._num_workers):
+        state = session.run(self._counter_vars[i])
+        if i == self._task_index and state == 0:
+          session.run(self._counter_add_ops[i])
+          state = session.run(self._counter_vars[i])
+
+        num_finished_workers = num_finished_workers + state
+
       tf.logging.info("%d workers have finished ...", num_finished_workers)
+      if num_finished_workers >= self._num_workers:
+        break
+
+      num_finished_workers = 0
       time.sleep(1)
-      num_finished_workers = session.run(self._num_finished_workers)
