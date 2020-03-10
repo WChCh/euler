@@ -33,6 +33,10 @@ COPY tools/docker/pip.conf /root/.pip
 RUN pip --no-cache-dir install tensorflow
 
 COPY . /tmp/Euler
+
+RUN cd /usr/local/lib/python2.7/dist-packages/tensorflow/ && \
+    ln -s libtensorflow_framework.so.1 libtensorflow_framework.so
+
 RUN cd /tmp/Euler/third_party/zookeeper && \
     ((cd zookeeper-client/zookeeper-client-c; \
       [ -e generated/zookeeper.jute.h ] && [ -e generated/zookeeper.jute.c ]) || \
@@ -44,3 +48,4 @@ RUN cd /tmp/Euler/third_party/zookeeper && \
     cd /tmp/Euler && \
     python tools/pip/setup.py install && \
     rm -rf /tmp/Euler /tmp/build
+RUN apt-get update && apt-get install net-tools vim -y
